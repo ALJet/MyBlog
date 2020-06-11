@@ -1,0 +1,92 @@
+{% load static %}
+<div class="top nav">
+    <div class="ui fixed borderless menu" style="left: 40px">
+        <div class="logo item">
+            <a href="{% url 'index' %}">
+                <span style="color: white;font-size: 35px;">MyBlog</span>
+            </a>
+        </div>
+        <div class="item">
+            <form class="ui icon input" >
+                <input type="hidden" name="type" value="content">
+                <input class="prompt" id="keywordInput" placeholder="搜索您感兴趣的文章..." name="q">
+                <i id="navSearchBtnIcon" class="search icon"></i>
+
+            </form>
+{#            <button type="submit" class="prompt" value="">搜索</button>#}
+
+        </div>
+
+        <a class="item" id="navSearchBtn">
+
+            <span class="nav text">搜索</span>
+        </a>
+        <a class="item" href="{% url 'topic' %}">
+
+            <span class="nav text">话题</span>
+        </a>
+        <!--<a class="item" v-on:click="addArticleBtn"> -->
+        <a class="item" href="{% url 'add_article' %}">
+
+            <span class="nav text">发表</span>
+        </a>
+
+
+
+        <div v-if="login_or">
+
+
+            <div class="dropdown profile">
+                <a id="top-profile" href="/user/[[user_info.id]]">
+                    <img id="profile-avatar" :src="user_info.image" alt="user_info.username"
+                         class="ui circular image"/>
+                    <span  id="profile-name">[[user_info.nickname]]</span>
+                </a>
+
+                <div class="dropdown-content">
+
+                    <div><a href="/user/[[user_info.id]]" style="font-size: 14px"><i
+                            class="ui user icon"></i>我的主页</a></div>
+                    <div><a href="#sign_out" v-on:click="logOut" style="font-size: 14px"><i class="ui remove icon"></i>退出</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right menu" v-if="!login_or">
+            <a class="item" onclick="$('#login-modal').modal('show')">
+                <span class="nav text"> 登录</span>
+            </a>
+            <a class="item" onclick="$('#register-modal').modal('show')">
+                <span class="nav text"> 注册 </span>
+            </a>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    $(document).ready(function () {
+        $('#navSearchBtn').click(function (e) {
+            e.preventDefault();
+            var keyword = $('#keywordInput').val();
+            if(keyword){
+                window.location = "/search/?type=content&q=" + keyword +"";
+
+            }
+
+        }),
+            $('#navSearchBtnIcon').click(function (e) {
+            e.preventDefault();
+            var keyword = $('#keywordInput').val();
+            if(keyword){
+                window.location = "/search/?type=content&q=" + keyword +"";
+
+            }
+
+        })
+
+    })
+</script>
+

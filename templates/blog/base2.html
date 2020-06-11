@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>{% block title %}XX博客{% endblock %}</title>
+</head>
+<body id="app">
+<div>
+    {% include 'top_nav.html' %}
+    {% block content %}
+
+    {% endblock %}
+</div>
+
+
+{% block vue_js %}
+{% endblock %}
+
+
+
+</body>
+</html>

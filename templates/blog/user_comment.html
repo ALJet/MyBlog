@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}我的评论{% endblock %}
+
+
+{% block custom_css %}
+    <link rel="stylesheet" href="{% static 'css/home.css' %}" media="screen" title="no title" charset="utf-8">
+    <link rel="stylesheet" href="{% static 'css/login.css' %}" media="screen" title="no title" charset="utf-8">
+{% endblock %}
+
+{% block content %}
+    <div class="ui basic segment container" style="top: 55px">
+        <div class="ui items">
+            <!--主体部分-->
+
+            参与的评论：
+            <div v-for="comment in my_comments" id="CommentsList" class="item">
+                <!--用户头像和点赞-->
+                <div class="ui small image" style="width:37px;height:37px;">
+                    {#                    <img style="width:37px;height:37px;" :src="article.author.image" v-on:click="userArticle(article)">#}
+                </div>
+
+
+                <div class="content" style="">
+                    <br/>[[ comment.content ]]
+                    <br />----评论自文章
+                    <a id="question-title" class="header" style="font-size:15px;color:#225599;"
+                       href="/article/[[comment.belong_to.id]]">
+                        [[comment.belong_to.title]]
+                    </a>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+    </div>
+
+
+
+{% endblock %}
+
+
+{% block vue_js %}
+    {#        <script type="text/javascript" src="{% static 'vue/index.js' %}">#}
+    {#        </script>#}
+    <script type="text/javascript">
+
+        $('#drop_down')
+            .dropdown({
+                on: 'hover'
+            });
+        Vue.config.delimiters = ["[[", "]]"];
+        Vue.filter('timeDeal', function (create_time) {
+            return create_time
+        });
+        vm_index = new Vue({
+            el: '#app',
+            data: {
+                moreOrNot: '加载更多',
+                my_comments: [],
+                articles: [],
+                topics: [],
+                comments: [],
+                login_or: false,
+                user_info: '',
+                username: '',
+                password: '',
+                email: '',
+                username_err: '',
+                password_err: '',
+                email_err: '',
+                msgShow: false,
+                page_lists: [],
+                pre: true,
+                havePre: false,
+                haveNext: false,
+                now_page: 1,
+                nowPage: '',
+                q: '',
+                article_content: '',
+                add_article: {
+                    title: '',
+                    desc: '',
+                    topic: ''
+                },
+            },
+            methods: {
+                // {#添加文章按钮 未登录弹出注册框
+                addArticleBtn: function () {
+                    var self = this;
+                    if (self.user_info == '') {
+                        return $('#register-modal').modal('show')
+                    }
+                },
+                // {# 添加文章
+                addArticle: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/articles/',
+                        type: 'json',
+                        method: 'post',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            title: self.add_article.title,
+                            description: self.add_article.description,
+                            topic: self.add_article.topic
+                        },
+                        success: function (resp) {
+                            window.location.href = '/articles/' + resp.id + '/'
+                        }
+                    })
+                },
+                ifLogin: function () {
+                    var self = this;
+                    if (self.user_info == '') {
+                        return $('#register-modal').modal('show')
+                    }
+                },
+                logIn: function () {
+                    var self = this;
+                    self.email_err = '';
+                    reqwest({
+                        url: '/api/login/',
+                        type: 'json',
+                        method: 'post',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            username: self.username,
+                            password: self.password
+                        },
+                        success: function (resp) {
+                            Cookies.set('token', resp.token);
+                            location.reload();
+
+
+                        },
+                        error: function (err) {
+                            self.password_err = JSON.parse(err.response).msg;
+                            self.msgShow = true;
+                        }
+                    })
+                },
+                logOut: function () {
+                    Cookies.remove('token');
+                    location.reload()
+                },
+                // {# 预先加载，用户判断用户身份
+                request_user: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/users/now/',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            self.user_info = resp;
+                            self.login_or = true
+                        },
+                        error: function (err) {
+                            json_msg = JSON.parse(err.response);
+                            self.login_or = false
+                        }
+                    })
+                },
+                displayBody: function () {
+                    document.querySelector('#home-page').style.cssText = "display:"
+                },
+                getComment: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/' + {{ user_id }} +'/comments/',
+                        type: 'json',
+                        method: 'get',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            self.my_comments = resp;
+                        }
+                    })
+                },
+                registerUser: function () {
+                    var self = this;
+                    self.password_err = '';
+                    reqwest({
+                        url: '/api/register/',
+                        method: 'post',
+                        type: 'json',
+                        data: {
+                            nickname: this.username,
+                            password: this.password,
+                            email: this.email,
+                        },
+                        success: function (resp) {
+                            $('#register-modal').modal('hide')
+                            return $('#login-modal').modal('show')
+                        },
+                        error: function (err) {
+                            self.msgShow = true;
+                            self.email_err = JSON.parse(err.response).msg;
+                        }
+                    })
+                },
+                userArticle: function (article) {
+                    var url = "{% url 'user_articles' 0 %}"
+                    url = url.replace(/0/, article.author.id)
+                    {#window.location.href = 'user/' + article.author.id + '/articles/'#}
+                    window.location.href = url
+                },
+                searchArticles: function () {
+
+
+                },
+            },
+            ready: function () {
+                this.displayBody();
+                this.request_user();
+                this.getComment();
+            }
+        })
+    </script>
+
+
+
+{% endblock %}

@@ -1,0 +1,9 @@
+{{ username }}, 你好
+
+欢迎加入MyBlog!
+
+请点击以下链接确认账户:
+
+https://{{ host }}{% url 'user_confirm' token %}
+
+该邮件来自MyBlog, 不用回复.

@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}编辑用户{% endblock %}
+{% block custom_css %}
+    <link rel="stylesheet" href="{% static 'css/home.css' %}" media="screen" title="no title">
+    <link rel="stylesheet" href="{% static 'css/profile.css' %}" media="screen" title="no title">
+{% endblock %}
+{% block content %}
+    <div class="edit-success-message" style="display: none">
+        <p class="success-message">保存成功</p>
+    </div>
+    <div class="edit-err-message" style="display: none">
+        <p class="err-message">[[err_msg]]</p>
+    </div>
+    <div class="ui basic container segment" style="width: 500px;">
+        <table>
+            <tbody>
+            <tr>
+                <td><img :src="c_user.image" style="width:100px;height:100px"/></td>
+                <td>
+                    {#                        <form method="post" enctype="multipart/form-data" action="" v-model="c_user.image">#}
+
+                    <input id="id_avatar" name="avatar" type="file" @change="updateImage">
+                    {#                            {% csrf_token %}#}
+                    <button class="ui basic button" v-on:click="editUser">修改头像</button>
+                    {#                        </form>#}
+                </td>
+            </tr>
+            <tr>
+                <td>名字</td>
+                <td>
+                    <div class="ui input"><input v-model="c_user.nickname" type="text" value="[[c_user.nickname]]">
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>一句话介绍</td>
+                <td>
+                    <div class="ui input"><input v-model="c_user.description" type="text"
+                                                 value="[[c_user.description]]"/>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <button v-on:click="editUser" style="margin-top: 25px" class="ui inverted blue button">保存</button>
+
+    </div>
+
+{% endblock %}
+
+{% block vue_js %}
+
+    <script>
+        Vue.config.delimiters = ["[[", "]]"];
+        Vue.filter('timeDeal', function (create_time) {
+            return create_time
+        });
+        vm_index = new Vue({
+            el: '#app',
+            data: {
+                err_msg: '',
+                c_user: [],
+                user_name: '',
+                user_desc: '',
+                user_info: '',
+                login_or: false,
+                add_article: {
+                    title: '',
+                    desc: '',
+                    topic: ''
+                },
+                imgData: {
+                    accept: 'image/gif, image/jpeg, image/png,image.jpg',
+                },
+                base64: '',
+            },
+            methods: {
+                editUser: function () {
+                    var self = this;
+
+                    reqwest({
+                        url: '/api/edit_user/' + self.user_info.id + '/',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        method: 'post',
+
+                        data: {
+                            name: self.c_user.nickname,
+                            desc: self.c_user.description,
+                            image:self.base64,
+                        },
+                        success: function (resp) {
+                            document.querySelector('.edit-success-message').style.cssText = "display:";
+                            document.querySelector('.edit-err-message').style.cssText = "display:none";
+                            self.getCurrentUser();
+                        },
+                        error: function (err) {
+                            message = err.response;
+                            json_msg = JSON.parse(message);
+                            self.err_msg = json_msg.msg;
+                            document.querySelector('.edit-success-message').style.cssText = "display:none";
+                            document.querySelector('.edit-err-message').style.cssText = "display:";
+                        }
+                    })
+                },
+
+                // {#添加文章按钮 未登录弹出注册框
+                addArticleBtn: function () {
+                    var self = this;
+                    if (self.user_info == '') {
+                        return $('#register-modal').modal('show')
+                    } else {
+                        return $('#article-modal').modal('show');
+                    }
+                },
+                // {# 添加文章
+                addArticle: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/articles/',
+                        type: 'json',
+                        method: 'post',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            title: self.add_article.title,
+                            description: self.add_article.description,
+                            topic: self.add_article.topic
+                        },
+                        success: function (resp) {
+                            window.location.href = '/articles/' + resp.id + '/'
+                        }
+                    })
+                },
+                ifLogin: function () {
+                    var self = this;
+                    if (self.user_info == '') {
+                        return $('#register-modal').modal('show')
+                    }
+                },
+                logIn: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/login/',
+                        type: 'json',
+                        method: 'post',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            username: self.username,
+                            password: self.password
+                        },
+                        success: function (resp) {
+                            Cookies.set('token', resp.token)
+                            location.reload()
+                        }
+                    })
+                },
+                logOut: function () {
+                    Cookies.remove('token');
+                    location.reload()
+                },
+                // {# 预先加载，用户判断用户身份
+                request_user: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/users/now/',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            self.user_info = resp;
+                            self.login_or = true
+                        },
+                        error: function (err) {
+                            json_msg = JSON.parse(err.response);
+                            self.login_or = false
+                        }
+                    })
+                },
+                displayBody: function () {
+                    document.querySelector('#home-page').style.cssText = "display:"
+                },
+                registerUser: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/register/',
+                        method: 'post',
+                        type: 'json',
+                        data: {
+                            nickname: this.username,
+                            password: this.password,
+                            email: this.email,
+                        },
+                        success: function (resp) {
+                            $('#register-modal').modal('hide')
+                            return $('#login-modal').modal('show')
+                        }
+                    })
+
+                },
+                getCurrentUser: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/user/' + {{ user_id }} +"/",
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            self.c_user = resp;
+                        }
+                    })
+                },
+                updateImage: function (event) {
+                    var self = this;
+                    let reader = new FileReader();
+                    let file = event.target.files[0];
+                    let type = file.type;
+                    let size = file.size;
+                    if (this.imgData.accept.indexOf(type) == -1) {
+                        alert('请选择我们支持的图片格式！')
+                        return false;
+                    }
+                    if (size > 3145728) {
+                        alert('请选择3M以内的图片！');
+                        return false;
+                    }
+                    reader.readAsDataURL(file);
+                    reader.onloadend = (e) => {
+                        this.base64 = reader.result;
+                    }
+                    reqwest({
+                        url: '/api/user/' + {{ user_id }} +"/",
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            name: self.c_user.nickname,
+                            desc: self.c_user.description,
+                            image: this.base64
+                        },
+                        success: function (resp) {
+                            self.getCurrentUser();
+                        }
+
+                    })
+
+                },
+
+            },
+            ready: function () {
+                this.getCurrentUser();
+                this.request_user();
+                this.displayBody();
+            }
+        })
+
+    </script>
+
+{% endblock %}

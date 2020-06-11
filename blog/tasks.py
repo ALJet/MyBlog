@@ -1,0 +1,43 @@
+# tasks.py模块要放在已注册应用的目录下
+# 在myblog项目目录下,
+# cmd运行: celery -A MyBlog worker -l info (-A 默认寻找目录下的celery模块)
+
+# 需要改为：celery -A MyBlog worker --loglevel=info -P solo
+# 不然无法使用 异步方法 还是因为python3.7 和celery 中async冲突
+# 启动celery服务
+
+from MyBlog import celery_app
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+
+
+# 如果发送邮件出错， 等10s再次发送， 最多重试3次
+# 修改发送邮件的方法，celery将任务放在redis中会序列化对象, 对象不能直接序列化，发送邮件的参数最好直接传值，不要传对象过来
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
+def send_email(self, subject, template, to, **kwargs):
+    '''发送邮件'''
+    try:
+        text_content = render_to_string(template + '.txt', kwargs)
+        html_content = render_to_string(template + '.html', kwargs)
+        msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_FROM,
+                                     [to])
+        msg.attach_alternative(html_content, 'text/html')
+        msg.send()
+    except Exception as e:
+        raise self.retry(exc=e)
+
+
+"""
+第二种方法
+from zhihuer import celery_app
+
+@celery_app.task
+def send_email(subject, template, to, **kwargs):
+    '''发送邮件'''
+    text_content = render_to_string(template+'.txt', kwargs)
+    html_content = render_to_string(template+'.html', kwargs)
+    msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_FROM, [to])
+    msg.attach_alternative(html_content, 'text/html')
+    msg.send()
+"""

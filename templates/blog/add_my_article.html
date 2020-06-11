@@ -1,0 +1,367 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}添加新文章{% endblock %}
+
+{% block custom_css %}
+    media="screen" title="no title" charset="utf-8">
+    <link rel="stylesheet" href="{% static 'css/home.css' %}" media="screen" title="no title" charset="utf-8">
+    <link rel="stylesheet" href="{% static 'css/login.css' %}" media="screen" title="no title" charset="utf-8">
+{% endblock %}
+
+{% block content %}
+
+    <div class="ui basic segment container">
+        <div>
+            <!--主体部分-->
+
+            <div>
+                <!--主体部分-->
+                <div class="item">
+
+                    <div class="field">
+
+                        <label id="lab_tips" style="color: red;">[[info_tips]]</label>
+
+                        <br/>
+                        <label>文章的标题：</label><input v-model="add_article.title" type="text" name="title">
+                    </div>
+                    <div class="field">
+                        <label style="margin: 15px 0 10px 0">文章简介：
+                        </label>
+                        <input v-model="add_article.description" type="text" name="description">
+                    </div>
+                    <div class="field">
+                        <label style="margin: 15px 0 10px 0">归属话题：</label>
+                        <select id="addTopic" v-model="selectTopic" @change="getTopicSelected">
+                            <option :value="topic.name" v-for="topic in topics">[[topic.name]]</option>
+                        </select>
+                    </div>
+
+                    <script id="editor" type="text/plain"></script>
+                </div>
+                <button v-on:click="PostArticle()">发布</button>
+
+                <div class="ui divider"></div>
+            </div>
+        </div>
+
+    </div>
+
+{% endblock %}
+
+{% block vue_js %}
+    <script type="text/javascript">
+        $('#drop_down')
+            .dropdown({
+                on: 'hover'
+            });
+
+
+        Vue.config.delimiters = ["[[", "]]"];
+        Vue.filter('timeDeal', function (create_time) {
+            return create_time
+        });
+        vm_index = new Vue({
+            el: '#app',
+            data: {
+                article: [],
+                topics: [],
+                comments: [],
+                comment_input_show: true,
+                comment_show: true,
+                comment_content: '',
+                login_or: false,
+                user_info: '',
+                vote_or: '',
+                username: '',
+                password: '',
+                email: '',
+                username_err: '',
+                password_err: '',
+                email_err: '',
+                msgShow: false,
+                page_lists: [],
+                pre: true,
+                havePre: false,
+                haveNext: false,
+                now_page: 1,
+                nowPage: '',
+                q: '',
+                article_content: '',
+                add_article: {
+                    title: '',
+                    description: '',
+                    topic: '',
+                },
+                selectTopic: '',
+                info_tips: '',
+                password_err: '',
+                email_err: '',
+
+
+            },
+            methods: {
+
+                // {# 添加文章
+                addArticle: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/articles/',
+                        type: 'json',
+                        method: 'post',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            title: self.add_article.title,
+                            description: self.add_article.desc,
+                            topic: self.add_article.topic
+                        },
+                        success: function (resp) {
+                            window.location.href = '/articles/' + resp.id + '/'
+                        }
+                    })
+                },
+                ifLogin: function () {
+                    var self = this;
+                    if (self.user_info == '') {
+                        return $('#register-modal').modal('show')
+                    }
+                },
+                logIn: function () {
+                    var self = this;
+                    self.email_err = '';
+                    reqwest({
+                        url: '/api/login/',
+                        type: 'json',
+                        method: 'post',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            username: self.username,
+                            password: self.password
+                        },
+                        success: function (resp) {
+
+                            Cookies.set('token', resp.token)
+                            location.reload()
+                        },
+                        error: function (err) {
+                            self.password_err = JSON.parse(err.response).msg;
+                            self.msgShow = true;
+                        }
+                    })
+                },
+                logOut: function () {
+                    Cookies.remove('token');
+                    location.reload()
+                },
+                // {# 预先加载，用户判断用户身份
+                request_user: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/users/now/',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            self.user_info = resp;
+                            self.login_or = true
+                        },
+                        error: function (err) {
+                            json_msg = JSON.parse(err.response);
+                            self.login_or = false
+                        }
+                    })
+                },
+                showLogin: function () {
+                    var self = this;
+                    if (self.login_or == false) {
+                        return $('#register-modal').modal('show')
+                    }
+                },
+                displayBody: function () {
+                    document.querySelector('#home-page').style.cssText = "display:"
+                },
+
+
+                registerUser: function () {
+                    var self = this;
+                    self.password_err = '';
+                    reqwest({
+                        url: '/api/register/',
+                        method: 'post',
+                        type: 'json',
+                        data: {
+                            nickname: this.username,
+                            password: this.password,
+                            email: this.email,
+                        },
+                        success: function (resp) {
+                            $('#register-modal').modal('hide')
+                            return $('#login-modal').modal('show')
+                        },
+                        error: function (err) {
+                            self.msgShow = true;
+                            self.email_err = JSON.parse(err.response).msg;
+                        }
+                    })
+
+                },
+                userArticle: function (article) {
+                    var url = "{% url 'user_articles' 0 %}"
+                    url = url.replace(/0/, article.author.id)
+                    {#window.location.href = 'user/' + article.author.id + '/articles/'#}
+                    window.location.href = url
+                },
+                initUeditor: function () {
+                    var ue = UE.getEditor("editor", {
+                        //注意特别容易写错 写错了就会上传不了 报http请求出错
+                        serverUrl: '/controller/',
+
+                        autoHeightEnabled: true,
+
+                        autoFloatEnabled: true,
+
+                        initialFrameWidth: 690,
+
+                        initialFrameHeight: 483,
+                        //关闭状态栏
+                        toolbars: [
+                            [
+                                'link', //超链接
+                                'unlink', //取消链接
+                                '|',
+                                'forecolor', //字体颜色
+                                'backcolor', //背景色
+                                'fontfamily', //字体
+                                'fontsize', //字号
+                                '|',
+                                'bold', //加粗
+                                'italic', //斜体
+                                'strikethrough', //删除线
+                                '|',
+                                'formatmatch', //格式刷
+                                'removeformat', //清除格式
+                                '|',
+                                'insertorderedlist', //有序列表
+                                'insertunorderedlist', //无序列表
+                                '|',
+                                'inserttable', //插入表格
+                                'paragraph', //段落格式
+                                'simpleupload', //单图上传
+                                'imagecenter', //居中
+                                'attachment', //附件
+                                '|',
+                                'justifyleft', //居左对齐
+                                'justifycenter', //居中对齐
+                                'horizontal', //分隔线
+                                '|',
+                                'blockquote', //引用
+                                'insertcode', //代码语言
+                                '|',
+                                'source', //源代码
+                                'preview', //预览
+                                'fullscreen', //全屏
+                            ]
+                        ],
+
+                        //关闭数字统计
+                        wordCount: false,
+                        //关闭elementPathEnabled
+                        elementPathEnabled: false,
+
+                        //上传图片配置（单张图片配置）
+                        imageActionName: 'uploadimage',//上传图片的action名称
+                        imageFieldName: 'upfile',//提交图片的表单名称
+                        imageMaxSize: '20480000',//上传大小限制 单位为B
+                        imageAllowFiles: ['.png', '.jpg', '.jpeg', '.gif', '.bmp'],//上传图片的格式显示
+                        imageCompressEnable: 'true',//是否压缩图片
+                        imageCompressBorder: '1600',//图片压缩最长限制
+                        imageInsertAlign: 'none',
+                        imageUrlPrefix: '',//图片访问路径前缀
+                        imagePathFormat: '/media/image/{yyyy}/{mm}/{dd}/{time}{rand:6}',//上传保存路径，可以自定义保存路径和文件名格式
+                        /*多图上传配置 */
+                        imageManagerActionName: 'listimage',//执行图片管理的action名称
+                        imageManagerListPath: '/upload/image',//指定要列出图片的目录
+                        imageManagerListSize: 20,//每次列出文件数量
+                        imageManagerUrlPrefix: '',//图片访问路径前缀
+                        imageManagerInsertAlign: 'none',//插入的图片浮动方式
+                        imageManagerAllowFiles: ['.png', '.jpg', '.jpeg', '.gif', '.bmp'],
+
+
+                    });
+                    ue.addListener('ready', function () {
+                    }, 2);
+
+                },
+                getTopic: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/topics/',
+                        method: 'get',
+                        type: 'json',
+                        success: function (resp) {
+                            self.topics = resp;
+                            self.selectTopic = self.topics[0].name;
+                        }
+                    })
+                },
+                getTopicSelected: function () {
+                    var self = this;
+                    self.selectTopic = addTopic.options[addTopic.selectedIndex].value;
+                },
+                PostArticle: function () {
+                    var self = this;
+                    self.add_article.content = UE.getEditor("editor", {}).getContent();
+                    if (self.login_or == false) {
+                        self.showLogin();
+                        return;
+                    }
+                    if (self.add_article.title == '') {
+                        self.info_tips = '标题不能为空！';
+                        return;
+                    }
+                    if (self.add_article.description == '') {
+                        self.info_tips = '文章简介不能为空！';
+                        return;
+                    }
+                    if (self.selectTopic == '') {
+                        self.info_tips = '请选择话题！';
+                        return;
+                    }
+                    if (self.add_article.content == '') {
+                        self.info_tips = '文章内容不能为空！';
+                        return;
+                    }
+                    self.info_tips = '';
+                    reqwest({
+                        url: '/api/articles/',
+                        method: 'post',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            topic: self.selectTopic,
+                            description: self.add_article.description,
+                            title: self.add_article.title,
+                            content: self.add_article.content,
+                        },
+                        success: function (resp) {
+                            var url = "{% url 'user_articles' 0 %}"
+                            url = url.replace(/0/, self.user_info.id)
+                            window.location.href = url
+                        }
+                    })
+
+
+                },
+
+            },
+            ready: function () {
+                this.initUeditor();
+                this.request_user();
+                this.getTopic();
+
+                //this.displayBody();
+
+            }
+        })
+    </script>
+
+{% endblock %}

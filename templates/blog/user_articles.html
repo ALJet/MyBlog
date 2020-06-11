@@ -1,0 +1,632 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{#{% block title %}[[articles.author.nickname]]的文章{% endblock %}#}
+{% block title %}{{ user_info.nickname }}的文章{% endblock %}
+
+
+{% block custom_css %}
+    <link rel="stylesheet" href="{% static 'css/home.css' %}" media="screen" title="no title" charset="utf-8">
+    <link rel="stylesheet" href="{% static 'css/login.css' %}" media="screen" title="no title" charset="utf-8">
+{% endblock %}
+
+{% block content %}
+    <div class="ui basic segment container">
+        <div class="ui items">
+            <!--主体部分-->
+            <div v-for="article in articles" class="item">
+                <!--用户头像和点赞-->
+                <div class="ui small image" style="width:37px;height:37px;">
+                    <img style="width:37px;height:37px;" :src="article.author.image" v-on:click="userArticle(article)">
+                    <!--点赞数未展开-->
+                    <div class="user_like" v-if="!article.show_all_content">
+                        <button v-on:click="showAllContent(article)" class="ui icon button"
+                                style="position:relative;background-color:#eff6fa;height:24px;width:37px;left:-13px;color: #698ebf;font-size:12px;font-weight: bold;">
+                            <span id="close_like_count">[[ article.like_counts ]]</span>
+                        </button>
+                    </div>
+                    <!--点赞数展开-->
+                    <div class="user-vote" v-if="article.show_all_content">
+                        <div class="user-like" v-on:click="userVote(2, article)">
+                            <div class="ui icon button up" :class="{'like':article.like_or == 2}">
+                                <i class="ui caret up icon"></i>
+                                <div id="user_like_counts">[[ article.like_counts ]]</div>
+                            </div>
+                        </div>
+
+                        <div class="user-dislike" v-on:click="userVote(3, article)">
+                            <div class="ui icon button down" :class="{'dislike':article.like_or == 3}">
+                                <i class="ui caret down icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!--答案主体-->
+                <div class="content" style="display:inline-block;">
+                    <a id="question-title" class="header" style="font-size:15px;color:#225599;"
+                       href="/article/[[article.id]]/">
+                        [[ article.title ]]
+                    </a>
+                    <div class="meta">
+                        <a id="username" href="/user/[[article.author.id]]/articles/">[[article.author.nickname ]],</a>
+                        <span id="user-desc">[[ article.author.description ]]</span>
+                    </div>
+                    <div v-if="!article.show_all_content" class="description">
+                        <p style="font-size:13px;line-height:1.69;font-stretch: normal;">
+                            [[ article.description]]
+                            <a id="show-all-content-a" v-on:click="showAllContent(article)">显示全部</a></p>
+                    </div>
+                    <div class="description" style="margin-top: 15px">
+                        <p style="font-size:13px;line-height:1.69;font-stretch: normal;">
+                            <!--//使用循环对应的id把每个uedit加载出来 :id这个属性挺重要的  -->
+                            <script :id="'editor'+article.id" type="text/plain"></script>
+                            <a id="show-all-content-a" v-if="article.show_all_content" v-on:click="closeUeditor(article)">收起</a>
+                    </div>
+
+                    <div class="extra">
+                        <i class="comment icon"></i>
+                        <a id="comment-num-a" v-if="article.comment_counts==0" v-show="!article.show_all_comments"
+                           v-on:click="getComment(article, 1)">添加评论</a>
+                        <a id="comment-num-a" v-show="article.show_all_comments"
+                           v-on:click="showAllCommentsSwitch(article)">收起</a>
+                        <a id="comment-num-a" v-on:click="getComment(article, 1)" v-show="!article.show_all_comments"
+                           v-if="!article.comment_counts==0">[[ article.comment_counts ]]条评论</a>
+                    </div>
+                    <!--评论和回复-->
+                    <div class="animated fadeIn" v-if="article.show_all_comments"
+                         style="box-sizing: border-box;padding: 20px;width: 500px;border: 1px solid #ddd;border-radius: 5px">
+                        <div class="ui comments">
+                            <div v-for="comment in article.article_comments" class="comment">
+                                <a class="avatar">
+                                    <img :src="comment.comment_user.image">
+                                </a>
+                                <div class="content">
+                                    <a id="username" href="/profile/[[comment.comment_user.id]]">
+                                        [[comment.comment_user.name]]
+                                    </a>
+
+                                    <div class="metadata">
+                                        <div class="date">[[comment.create_time]]</div>
+                                    </div>
+                                    <div class="text">
+                                        [[comment.content]]
+                                    </div>
+                                    <div v-on:click="ifLogin" class="actions">
+                                        <a v-on:click="commentReplyInput(comment)" class="reply active"
+                                           :class="comment.comment_reply_input" style="color: #999">回复</a>
+                                    </div>
+
+                                    <div v-show="comment.comment_reply_input" class="ui reply form">
+                                        <div class="field">
+                                            <input v-model="comment.comment_content">
+                                        </div>
+                                        <div v-on:click="commentReplyInput(comment)" class="ui tiny button"
+                                             style="background-color: white;color: #999;margin-left: 68%;">
+                                            取消
+                                        </div>
+                                        <div v-on:click="replyComment(article, comment)" class="ui tiny button"
+                                             style="background-color: #0D6EB8;color: white;float: right">
+                                            回复
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <!-- 子评论 -->
+                                <div class="child_comments">
+
+                                    <div class="content" v-for="child_comment in comment.child_comments">
+
+                                        <a href="/profile/[[child_comment.comment_user.id]]">
+                                            [[child_comment.comment_user.name]]
+                                        </a>
+                                        <span>:</span>
+                                        <a href="/profile/[[child_comment.reply_to.comment_user.id]]">@[[child_comment.reply_to.comment_user.name]]</a>
+                                        <div class="text" style="display: inline-block;">
+                                            [[child_comment.content]]
+                                        </div>
+
+                                        <div class="actions">
+                                            <span class="date metadata" style="margin-left: 0">[[child_comment.create_time]]</span>
+                                            <a v-on:click="commentReplyInput(child_comment)" class="reply active"
+                                               :class="child_comment.comment_reply_input" style="color: #999">回复</a>
+                                        </div>
+
+                                        <div v-show="child_comment.comment_reply_input" class="ui reply form">
+                                            <div class="field">
+                                                <input v-model="child_comment.comment_content">
+                                            </div>
+                                            <div v-on:click="commentReplyInput(child_comment)" class="ui tiny button"
+                                                 style="background-color: white;color: #999;margin-left: 68%;">
+                                                取消
+                                            </div>
+                                            <div v-on:click="replyChildComment(article, comment, child_comment)"
+                                                 class="ui tiny button"
+                                                 style="background-color: #0D6EB8;color: white;float: right">
+                                                回复
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div v-show="page>0" class="comment-pagination"
+                                 style="border-top: 1px solid #eee;border-bottom: 1px solid #eee;font-size: 1.1em;text-align: center;line-height: 2.7;height: 43px;margin-top: 20px">
+                                <a v-show="havePre" style="padding: .5em;" v-on:click="getPreCom(article, page)">上一页</a>
+                                <span v-show="!havePre" style="color: #999">上一页</span>
+                                <span v-for="page in page_lists">
+                                        <span><a v-show="now_page!=page" style="padding: .5em;"
+                                                 v-on:click="getComment(article, page)">[[page]]</a></span>
+                                        <span style="padding: .5em;" v-show="now_page==page">[[page]]</span>
+                                    </span>
+
+                                <a v-show="haveNext" style="padding: .5em;"
+                                   v-on:click="getNextCom(article, page)">下一页</a>
+                                <span v-show="!haveNext" style="color: #999">下一页</span>
+                            </div>
+
+                        </div>
+
+                        <!--评论表单-->
+                        <form class="ui form">
+                            <div v-on:click="ifLogin" class="field">
+                                <input v-model="comment_content" placeholder="写下你的评论...">
+                            </div>
+                            <div v-on:click="comment_content=''" class="ui tiny button"
+                                 style="background-color: white;color: #999;margin-left: 71%;">
+                                取消
+                            </div>
+                            <div v-on:click="addComment(article)" class="ui tiny button"
+                                 style="background-color: #0D6EB8;color: white;float: right">
+                                评论
+                            </div>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+            <div class="ui divider"></div>
+        </div>
+        <div class="ui long button">
+            <div class="header item">
+                <a v-on:click="loadMoreArticle">[[moreOrNot]]</a>
+            </div>
+        </div>
+    </div>
+
+
+{% endblock %}
+
+
+{% block vue_js %}
+    {#        <script type="text/javascript" src="{% static 'vue/index.js' %}">#}
+    {#        </script>#}
+
+    <script>
+        $('#drop_down')
+            .dropdown({
+                on: 'hover'
+            });
+
+
+        Vue.config.delimiters = ["[[", "]]"];
+        Vue.filter('timeDeal', function (create_time) {
+            return create_time
+        });
+        vm_index = new Vue({
+            el: '#app',
+            data: {
+                moreOrNot: '加载更多',
+                articles: [],
+                topics: [],
+                comments: [],
+                comment_input_show: true,
+                comment_show: false,
+                comment_content: '',
+                login_or: false,
+                user_info: '',
+                vote_or: '',
+                username: '',
+                password: '',
+                email: '',
+                username_err: '',
+                password_err: '',
+                email_err: '',
+                msgShow: false,
+                page_lists: [],
+                pre: true,
+                havePre: false,
+                haveNext: false,
+                now_page: 1,
+                nowPage: '',
+                q: '',
+                article_content: '',
+                add_article: {
+                    title: '',
+                    desc: '',
+                    topic: ''
+                },
+                password_err:'',
+                email_err:'',
+
+            },
+            methods: {
+                // {#添加文章按钮 未登录弹出注册框
+                addArticleBtn: function () {
+                    var self = this;
+                    if (self.user_info == '') {
+                        return $('#register-modal').modal('show')
+                    } else {
+                        return $('#article-modal').modal('show');
+                    }
+                },
+                // {# 添加文章
+                addArticle: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/articles/',
+                        type: 'json',
+                        method: 'post',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            title: self.add_article.title,
+                            description: self.add_article.description,
+                            topic: self.add_article.topic
+                        },
+                        success: function (resp) {
+                            window.location.href = '/articles/' + resp.id + '/'
+                        }
+                    })
+                },
+                ifLogin: function () {
+                    var self = this;
+                    if (self.user_info == '') {
+                        return $('#register-modal').modal('show')
+                    }
+                },
+                logIn: function () {
+                    var self = this;
+                    self.email_err = '';
+                    reqwest({
+                        url: '/api/login/',
+                        type: 'json',
+                        method: 'post',
+                        headers: Cookies.get('token')?{'Authorization': 'Token ' + Cookies.get('token')}:{},
+                        data: {
+                            username: self.username,
+                            password: self.password
+                        },
+                        success: function (resp) {
+
+                            Cookies.set('token', resp.token)
+                            location.reload()
+                        },
+                        error:function (err) {
+                            self.password_err = JSON.parse(err.response).msg;
+                            self.msgShow = true;
+                        }
+                    })
+                },
+                logOut: function () {
+                    Cookies.remove('token');
+                    location.reload()
+                },
+                // {# 预先加载，用户判断用户身份
+                request_user: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/users/now/',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            self.user_info = resp;
+                            self.login_or = true
+                        },
+                        error: function (err) {
+                            json_msg = JSON.parse(err.response);
+                            self.login_or = false
+                        }
+                    })
+                },
+                displayBody: function () {
+                    document.querySelector('#home-page').style.cssText = "display:"
+                },
+                getArticle: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/articles/?user_id=' + {{ user_id }},
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            if (resp.length < 10) {
+                                self.moreOrNot = '没有了'
+
+                            }
+                            // {# 为每个article添加默认不显示评论和不显示全部内容
+                            for (r in resp) {
+                                resp[r].show_all_comments = false;
+                                resp[r].show_all_content = false;
+                                resp[r].like_or = 1;
+                            }
+                            self.articles = resp;
+                        }
+                    })
+                },
+                getComment: function (article, page) {
+                    var self = this;
+                    var articles = self.articles
+                    for (r in articles) {
+                        articles[r].show_all_comments = false;
+                    }
+                    reqwest({
+                        url: '/api/comments?page=' + page + '&article_id=' + article.id,
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            var comments = resp.data
+                            for (c in comments) {
+                                var comment = comments[c]
+                                comment.comment_reply_input = false;
+                                comment.comment_content = '';
+                                for (d in comment.child_comments) {
+                                    comment.child_comments[d].comment_reply_input = false;
+                                    comment.child_comments[d].comment_content = ''
+                                }
+                            }
+                            ;
+                            article.article_comments = comments;
+                            self.now_page = resp.now_page;
+                            self.page_lists = resp.page_list;
+                            article.show_all_comments = true;
+                            self.haveNext = resp.have_next
+
+                            if (page == 1) {
+                                self.havePre = false
+                            } else {
+                                self.havePre = true
+                            }
+                        }
+                    })
+                },
+                getChildComment: function (comment) {
+                    reqwest({
+                        url: '/api/child_comments/' + comment.id + '/',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            comment.child_comments = resp
+                        }
+                    })
+                },
+                getNextCom: function (article) {
+
+                    next_page = parseInt(this.now_page) + 1
+                    this.getComment(article, next_page)
+                },
+                getPreCom: function (article) {
+                    pre_page = parseInt(this.now_page) - 1
+                    this.getComment(article, pre_page)
+                },
+                loadMoreArticle: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/articles?p=' + self.articles.length,
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            for (r in resp) {
+                                resp[r].show_all_comments = false
+                            }
+                            // {# 加载之前的文章数量
+                            before_len = self.articles.length;
+                            // {# 新加载的文章 push到列表中
+                            for (a in resp) {
+                                for (c in self.articles)
+                                    if (c.id != a.id)
+                                        self.articles.push(resp[a])
+                            }
+                            // {# 加载之后的数量
+                            after_len = self.articles.length;
+
+                            // {# 默认每次加载5个，如果少于5个，即没有了
+                            if (after_len - before_len < 5) {
+                                self.moreOrNot = '没有了'
+                            }
+                        }
+                    })
+                },
+                showAllContent: function (article) {
+                    var self = this;
+                    reqwest({
+                        url: '/api/articles/' + article.id,
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            article.like_or = resp.vote;
+                            article.like_counts = resp.article.like_counts;
+                            article.show_all_content = true;
+                            article.content = resp.article.content;
+                            //使用循环对应的id把每个uedit加载出来
+                            var ue = UE.getEditor("editor" + article.id, {
+                                //注意特别容易写错 写错了就会上传不了 报http请求出错
+                                serverUrl: '/controller/',
+
+                                autoHeightEnabled: true,
+
+                                autoFloatEnabled: true,
+
+                                initialFrameWidth: 690,
+
+                                initialFrameHeight: 483,
+                                //关闭状态栏
+                                toolbars:[],
+
+                                //关闭数字统计
+                                wordCount: false,
+                                //关闭elementPathEnabled
+                                elementPathEnabled: false,
+
+                                //上传图片配置（单张图片配置）
+                                imageActionName:'uploadimage',//上传图片的action名称
+                                imageFieldName:'upfile',//提交图片的表单名称
+                                imageMaxSize:'20480000',//上传大小限制 单位为B
+                                imageAllowFiles:['.png','.jpg','.jpeg','.gif','.bmp'],//上传图片的格式显示
+                                imageCompressEnable:'true',//是否压缩图片
+                                imageCompressBorder:'1600',//图片压缩最长限制
+                                imageInsertAlign:'none',
+                                imageUrlPrefix:'',//图片访问路径前缀
+                                imagePathFormat:'/media/image/{yyyy}/{mm}/{dd}/{time}{rand:6}',//上传保存路径，可以自定义保存路径和文件名格式
+                                /*多图上传配置 */
+                                imageManagerActionName:'listimage',//执行图片管理的action名称
+                                imageManagerListPath:'/upload/image',//指定要列出图片的目录
+                                imageManagerListSize:20,//每次列出文件数量
+                                imageManagerUrlPrefix:'',//图片访问路径前缀
+                                imageManagerInsertAlign:'none',//插入的图片浮动方式
+                                imageManagerAllowFiles:['.png','.jpg','.jpeg','.gif','.bmp'],
+
+
+                            });
+                            ue.addListener('ready', function () {
+                                ue.setContent(article.content);
+                                ue.setDisabled();
+                            }, 2);
+                            //<!--需要设置 ueditor显示出来 和hide对应 -->
+                            $('#editor' + article.id).show();
+                        }
+                    })
+                },
+                showAllCommentsSwitch: function (article) {
+                    article.show_all_comments = !article.show_all_comments;
+                },
+                commentReplyInput: function (comment) {
+                    comment.comment_reply_input = !comment.comment_reply_input
+                },
+                addComment: function (article) {
+                    var self = this;
+                    reqwest({
+                        url: '/api/comments/',
+                        method: 'post',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            content: self.comment_content,
+                            article_id: article.id
+                        },
+                        success: function (resp) {
+                            var comment_counts = resp.comment_counts;
+                            page = Math.ceil(comment_counts / 5);
+                            self.getComment(article, page);
+                            self.comment_content = ''
+                        }
+                    })
+                },
+                replyComment: function (article, comment) {
+                    var self = this;
+                    reqwest({
+                        url: '/api/comments/',
+                        method: 'post',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            content: comment.comment_content,
+                            article_id: article.id,
+                            parent_id: comment.id,
+                            reply_id: comment.id
+                        },
+                        success: function (resp) {
+                            var comment_counts = resp.comment_counts;
+                            page = Math.ceil(comment_counts / 5);
+                            self.getComment(article, page);
+                            comment.comment_content = ''
+                        }
+                    })
+                },
+                replyChildComment: function (article, comment, child_comment) {
+                    var self = this;
+                    reqwest({
+                        url: '/api/comments/',
+                        method: 'post',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            content: child_comment.comment_content,
+                            article_id: article.id,
+                            parent_id: comment.id,
+                            reply_id: child_comment.id
+                        },
+                        success: function (resp) {
+                            var comment_counts = resp.comment_counts;
+                            page = Math.ceil(comment_counts / 5);
+                            self.getComment(article, page);
+                            child_comment.comment_content = ''
+                        }
+                    })
+                },
+                userVote: function (vote, article) {
+                    var self = this;
+                    if (self.login_or == false) {
+                        return $('#register-modal').modal('show')
+                    } else {
+                        reqwest({
+                            url: '/api/user_vote/',
+                            type: 'json',
+                            method: 'post',
+                            headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                            data: {
+                                vote: vote,
+                                article_id: article.id
+                            },
+                            success: function () {
+                                self.showAllContent(article)
+                            }
+                        })
+                    }
+                },
+                registerUser: function () {
+                    var self = this;
+                    self.password_err = '';
+                    reqwest({
+                        url: '/api/register/',
+                        method: 'post',
+                        type: 'json',
+                        data: {
+                            nickname: this.username,
+                            password: this.password,
+                            email: this.email,
+                        },
+                        success: function (resp) {
+                            $('#register-modal').modal('hide')
+                            return $('#login-modal').modal('show')
+                        },
+                        error:function (err) {
+                            self.msgShow = true;
+                            self.email_err = JSON.parse(err.response).msg;
+                        }
+                    })
+
+                },
+                userArticle: function (article) {
+                    var url = "{% url 'user_articles' 0 %}"
+                    url = url.replace(/0/, article.author.id)
+                    window.location.href = url
+                },
+                closeUeditor: function (article) {
+                    var ue = UE.getEditor('editor' + article.id, {});
+                    if (ue) {
+                        article.show_all_content = !article.show_all_content
+                        ue.destroy()
+                        //需要设置 ueditor隐藏起来 和show对应
+                        $('#editor' + article.id).hide();
+                    }
+                }
+
+            },
+            ready: function () {
+                this.request_user();
+                this.getArticle();
+                this.displayBody();
+            }
+        })
+    </script>
+{% endblock %}

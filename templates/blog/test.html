@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+{% load static %}
+<html>
+<head>
+    <title>百度编辑器</title>
+</head>
+<body>
+<script type="text/javascript" charset="utf-8" src="{% static 'ueditor/ueditor.config.js' %}"></script>
+<script type="text/javascript" charset="utf-8" src="{% static 'ueditor/ueditor.all.min.js' %}" ></script>
+<script type="text/javascript" charset="utf-8"  src="{% static 'ueditor/lang/zh-cn/zh-cn.js' %}"></script>
+
+{#<script type="text/javascript" charset="utf-8" src='/static/ueditor.config.js' ></script>#}
+{#<script type="text/javascript" charset="utf-8" src="/static/ueditor.all.min.js"></script>#}
+
+
+<script id="editor" type="text/plain"></script>
+<script
+type = "text/javascript" >
+//实例化编辑器
+var ue = UE.getEditor("editor", {
+    //必须配置成这个路径/controller/
+                                serverUrl: '/controller/',
+
+                                autoHeightEnabled: true,
+
+                                autoFloatEnabled: true,
+
+                                initialFrameWidth: 690,
+
+                                initialFrameHeight: 483,});
+</script>
+</body>
+</html>

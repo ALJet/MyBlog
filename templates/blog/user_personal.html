@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% block content %}
+    <div class="ui basic container segment" style="top: 55px;">
+        <div class="">
+            <img :src="visit_user.image" style="width:100px;height:100px"/>
+        </div>
+        <h3 id="user-name">
+            [[visit_user.nickname]]
+            <span id="user-desc">[[visit_user.description ]]</span>
+        </h3>
+        <a id="editButton" href="/user/[[visit_user.id]]/edit/" class="ui blue basic button"
+           style="">修改资料</a>
+
+        <a id="editButton" href="/user/[[visit_user.id]]/articles/" class="ui blue basic button"
+           style="">所有文章</a>
+        <a id="editButton" href="/user/[[visit_user.id]]/comments/" class="ui blue basic button"
+           style="">所有评论</a>
+
+    </div>
+
+{% endblock %}
+
+
+{% block vue_js %}
+    <script>
+        Vue.config.delimiters = ["[[", "]]"];
+        vm_index = new Vue({
+            el: '#app',
+            data: {
+                user_info: '',
+                visit_user: '',
+                login_or: false,
+                add_article: {
+                    title: '',
+                    desc: '',
+                    topic: ''
+                },
+                username: '',
+                password: '',
+                email: '',
+                like_article: [],
+                user_asks: [],
+                user_answer_show: true,
+                user_question_show: false,
+                ask_active: '',
+                answer_active: '',
+                comments: [],
+                noAsk: false,
+                password_err: '',
+                email_err: '',
+                msgShow: false,
+            },
+            methods: {
+                // {#添加文章按钮 未登录弹出注册框
+                addArticleBtn: function () {
+                    var self = this;
+                    if (self.user_info == '') {
+                        return $('#register-modal').modal('show')
+                    } else {
+                        return $('#article-modal').modal('show');
+                    }
+                },
+                // {# 添加文章
+                addArticle: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/articles/',
+                        type: 'json',
+                        method: 'post',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            title: self.add_article.title,
+                            description: self.add_article.description,
+                            topic: self.add_article.topic
+                        },
+                        success: function (resp) {
+                            window.location.href = '/articles/' + resp.id + '/'
+                        }
+                    })
+                },
+                registerUser: function () {
+                    var self = this;
+                    self.password_err = '';
+                    reqwest({
+                        url: '/api/register/',
+                        method: 'post',
+                        type: 'json',
+                        data: {
+                            nickname: this.username,
+                            password: this.password,
+                            email: this.email,
+                        },
+                        success: function (resp) {
+                            $('#register-modal').modal('hide')
+                            return $('#login-modal').modal('show')
+                        },
+                        error: function (err) {
+                            self.msgShow = true;
+                            self.email_err = JSON.parse(err.response).msg;
+                        }
+                    })
+
+                },
+
+                ifLogin: function () {
+                    var self = this;
+                    if (self.user_info == '') {
+                        return $('#register-modal').modal('show')
+                    }
+                },
+                logIn: function () {
+                    var self = this;
+                    self.email_err = '';
+                    reqwest({
+                        url: '/api/login/',
+                        type: 'json',
+                        method: 'post',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        data: {
+                            username: self.username,
+                            password: self.password
+                        },
+                        success: function (resp) {
+
+                            Cookies.set('token', resp.token)
+                            location.reload()
+                        },
+                        error: function (err) {
+                            self.password_err = JSON.parse(err.response).msg;
+                            self.msgShow = true;
+                        }
+                    })
+                },
+                logOut: function () {
+                    Cookies.remove('token');
+                    location.reload()
+                },
+                // {# 预先加载，用户判断用户身份
+                request_user: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/users/now/',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            self.user_info = resp;
+                            self.login_or = true
+                            if (self.user_info.id == {{ user_id }}) {
+                                document.querySelector('#editButton').style.cssText = "display: ";
+                            }
+                        },
+                        error: function (err) {
+                            json_msg = JSON.parse(err.response);
+                            self.login_or = false
+                        }
+                    })
+                },
+                displayBody: function () {
+                    document.querySelector('#home-page').style.cssText = "display:"
+                },
+                getComment: function (article, page) {
+
+                    var self = this;
+                    var articles = self.articles
+                    for (r in articles) {
+                        articles[r].show_all_comments = false;
+                    }
+                    reqwest({
+                        url: '/api/comments?page=' + page + '&article_id=' + article.id,
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            var comments = resp.data
+                            for (c in comments) {
+                                var comment = comments[c]
+                                comment.comment_reply_input = false;
+                                comment.comment_content = '';
+                                for (d in comment.child_comments) {
+                                    comment.child_comments[d].comment_reply_input = false;
+                                    comment.child_comments[d].comment_content = ''
+                                }
+                            }
+                            ;
+                            article.article_comments = comments;
+                            self.now_page = resp.now_page;
+                            self.page_lists = resp.page_list;
+                            article.show_all_comments = true;
+                            self.haveNext = resp.have_next
+
+                            if (page == 1) {
+                                self.havePre = false
+                            } else {
+                                self.havePre = true
+                            }
+                        }
+                    })
+                },
+                getChildComment: function (comment) {
+                    reqwest({
+                        url: '/api/child_comments/' + comment.id + '/',
+                        type: 'json',
+                        headers: Cookies.get('token') ? {'Authorization': 'Token ' + Cookies.get('token')} : {},
+                        success: function (resp) {
+                            comment.child_comments = resp
+                        }
+                    })
+                },
+                getNextCom: function (article) {
+
+                    next_page = parseInt(this.now_page) + 1
+                    this.getComment(article, next_page)
+                },
+                getPreCom: function (article) {
+                    pre_page = parseInt(this.now_page) - 1
+                    this.getComment(article, pre_page)
+                },
+                getUser: function () {
+                    var self = this;
+                    reqwest({
+                        url: '/api/user/' + {{ user_id }}+'/',
+                        type: 'json',
+                        success: function (resp) {
+                            self.visit_user = resp;
+
+                        }
+                    })
+                },
+
+            },
+            ready: function () {
+                this.getUser();
+                this.displayBody();
+                this.request_user();
+
+
+            }
+        })
+
+    </script>
+{% endblock %}

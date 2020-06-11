@@ -1,0 +1,29 @@
+<div id="login-modal" class="ui basic modal">
+    <div class="ui segment container" style="width: 302px;height: 291px;border-radius: 5px;
+    box-shadow: 0 0 15px 0 rgba(0,0,0,.3);">
+        <div style="color: black;text-align: right;margin-top: -6px;width: 280px">
+            <i class="remove icon" onclick="javascript:$('.ui.modal').modal('hide')" style="cursor: pointer;"></i>
+        </div>
+        <div class="login-title"
+             style="font-size: 16px;line-height: 18px;font-weight: 700;margin-top: 10px;color: #787878;text-align: center;">
+            登录MyBlog
+            <div class="sub-title" style="font-size: 14px;font-weight: 400;text-align: center;margin-top: 9px">
+                与世界分享你的知识、经验和见解
+            </div>
+        </div>
+        <form class="ui form" id="login-form" style="margin-top: 20px">
+            <div class="field" v-on:click="msgShow=false">
+                <p v-if="msgShow" id="form-message">[[email_err]]</p>
+                <input v-model="username" type="email" placeholder="邮箱">
+            </div>
+            <div class="field">
+                <p v-if="msgShow" id="form-message2">[[password_err]]</p>
+                <input v-model="password" type="password" placeholder="密码">
+            </div>
+            <a @click="logIn" class="ui blue button" style="width: 270px">登录</a>
+            <div class="login-foot" style="color: black;float: right;margin-top: 15px;">
+                忘记密码？
+            </div>
+        </form>
+    </div>
+</div>

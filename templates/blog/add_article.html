@@ -1,0 +1,37 @@
+{% load static %}
+<div id="article-modal" class="ui segments modal">
+    <div class="">
+        <div class="item">
+            <h3 class="">添加文章</h3>
+        </div>
+        <div class="right menu">
+            <div class="item">
+                <a href="javascript:$('.ui.modal').modal('hide')">
+                    <div class="ui circular image"><img src="{% static 'images/close_icon.png' %}"></div>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="ui basic segment container" style="left: 0">
+        <div class="ui form">
+            <div class="field">
+                <input v-model="add_article.title" type="text" name="question" placeholder="写下你的文章">
+            </div>
+            <div class="field">
+                <label style="margin: 15px 0 10px 0">问题说明：
+                    <span style="float: right;"><img src="{% static 'images/img_icon.png' %}"></span>
+                    <span class="" style="float: right; margin-right: 10px"><img
+                            src="{% static 'images/code_icon.png' %}"></span>
+                </label>
+                <textarea v-model="add_article.desc" placeholder="问题背景、相关代码及截图等详细信息"></textarea>
+            </div>
+            <div class="field">
+                <label style="margin: 15px 0 10px 0">添加话题：</label>
+                <input v-model="add_article.topic" type="text" name="" placeholder="话题之间用空格隔开">
+            </div>
+        </div>
+        <button v-on:click="addArticle" class="ui blue right floated button" style="margin-top: 25px">发布</button>
+        <a href="javascript:$('.ui.modal').modal('hide')" class="ui inverted right floated button"
+           style="margin-top: 25px; color: #6699CC">取消</a>
+    </div>
+</div>

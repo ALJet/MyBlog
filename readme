@@ -1,0 +1,40 @@
+关于celery和redis的
+版本为
+celery==3.1.26.post2
+django-celery==3.3.1
+django-redis==4.11.0
+redis==2.10.6
+
+
+python3.7 async是关键字所以会与celery中的async冲突，需要手动改，
+ 改动venv/lib/site-packages/kombu 中async文件夹（我改为async_2）
+ 和关联的venv/lib/site-packages/celery中的部分代码
+
+
+改造前，目录结构是zhihuer（project）下几个apps，运行结果无法使用 ‘celery -A MyZhihuer worker -l info’ 提示模块找不到（helper模块和user）
+所以必须把几个app放入一个apps中。这样就可以正常运行
+需要改为这种方式默认是单进程启动worker。 ‘celery -A MyZhihuer worker --loglevel=info -P solo’
+
+
+
+
+
+
+接下来编写你希望django去完成的app，本文中要编写的就是在INSTALLED_APPS中注册的apps。在celery.py中设定了对settings.py中INSTALLED_APPS做autodiscover_tasks，本文希望apps中能够接受这样的目录组织：所有的app都可以放到apps下面，而且每个app都有独立的目录，就和上面的app1、app2一样，每个app各自有各自的init.py和tasks.py（注意，每个app都需要init.py文件，可以是空白的）。但是这样的结构组织在启动时会报错说module apps找不到。然后在apps下增加了一个init.py文件，这时报错没了，但是apps下每个app的tasks.py中的任务函数还是无法被django和celery worker找到。
+
+
+
+二。关于百度富文本 在html前端使用
+必须引用到 vue下的DjangoUeditor文件夹中的文件。
+config文件必须放置在 all.min前面
+<script type="text/javascript" charset="utf-8" src="{% static 'ueditor/ueditor.config.js' %}"></script>
+<script type="text/javascript" charset="utf-8" src="{% static 'ueditor/ueditor.all.min.js' %}" ></script>
+
+
+
+
+
+
+添加了修改头像的功能 通过API修改头像
+base64提交 后台base64转换 写入文件 数据库写入个路径即可
+
