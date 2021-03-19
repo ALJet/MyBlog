@@ -12,7 +12,7 @@ django-formtools==2.2
 django-import-export==2.0.2
 django-redis==4.11.0
 django-reversion==3.0.7
-djangorestframework==3.11.0
+djangorestframework==3.11.2
 DjangoUeditor==1.8.143
 et-xmlfile==1.0.1
 future==0.18.2
